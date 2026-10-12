@@ -1,0 +1,4 @@
+# The image is built from the files in container/ only. Everything else,
+# including the password files in secrets/, stays out of the build context.
+*
+!container

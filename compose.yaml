@@ -1,0 +1,66 @@
+services:
+  db:
+    image: docker.io/library/mariadb:13.0
+    command:
+      # Phorge reports a setup issue for each of these when it is missing.
+      - --sql-mode=STRICT_ALL_TABLES
+      - --max-allowed-packet=33554432
+      - --local-infile=0
+      - --innodb-buffer-pool-size=256M
+    environment:
+      MARIADB_USER: phorge
+      MARIADB_PASSWORD_FILE: /run/secrets/db_password
+      MARIADB_ROOT_PASSWORD_FILE: /run/secrets/db_root_password
+    secrets:
+      - db_password
+      - db_root_password
+    volumes:
+      - db:/var/lib/mysql
+      - ./db/initdb.d:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  phorge:
+    build:
+      context: .
+      dockerfile: Containerfile
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # Phorge rejects a host name without a dot, so "localhost" cannot be
+      # used here.
+      PHORGE_BASE_URI: ${PHORGE_BASE_URI:-http://phorge.localhost:8080/}
+      PHORGE_TIMEZONE: ${PHORGE_TIMEZONE:-UTC}
+    ports:
+      # Loopback only by default: the first visitor of a new instance creates
+      # the administrator account.
+      - ${PHORGE_LISTEN:-127.0.0.1:8080}:80
+    secrets:
+      - db_password
+    volumes:
+      - files:/var/lib/phorge/files
+    healthcheck:
+      test: ["CMD", "healthcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      # The first start creates the database schema. Failed checks are not
+      # counted during this time.
+      start_period: 300s
+    # The daemons get 60 seconds to finish the task they are working on.
+    stop_grace_period: 70s
+
+volumes:
+  db:
+  files:
+
+secrets:
+  db_password:
+    file: ./secrets/db_password
+  db_root_password:
+    file: ./secrets/db_root_password
