@@ -1,0 +1,17 @@
+# Settings of the Phorge container. Copy this file to
+# ~/.config/containers/systemd/phorge.container.d/settings.conf, remove the "#"
+# in front of the lines to change and set the values. The values below are the
+# defaults.
+
+[Container]
+# Address and port on the host on which Phorge listens. The empty line removes
+# the default; without it Phorge listens on both ports.
+#PublishPort=
+#PublishPort=127.0.0.1:8080:80
+
+# Address under which browsers reach Phorge, with the port when it is not 80 or
+# 443. The host name needs at least one dot.
+#Environment=PHORGE_BASE_URI=http://phorge.localhost:8080/
+
+# Time zone that Phorge displays to users who have not chosen one.
+#Environment=PHORGE_TIMEZONE=UTC

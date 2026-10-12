@@ -1,7 +1,9 @@
 #!/bin/sh
-# Entry point of the Phorge container. It runs as root: it writes the
-# configuration, brings the database schema up to date and then starts
-# supervisord, which runs nginx, php-fpm and the daemons.
+# Entry point of the Phorge container. It runs as root inside the container:
+# it writes the configuration, brings the database schema up to date and then
+# starts supervisord, which runs nginx, php-fpm and the daemons. With rootless
+# podman, root inside the container is the user who started the container, not
+# root on the host.
 set -eu
 
 cd /opt/phorge/phorge
@@ -15,7 +17,7 @@ until mariadb-admin --host=db --skip-ssl --silent ping; do
 done
 
 # The configuration is written at every start, so that it always follows the
-# settings of the compose file. "bin/config set" stores the values in
+# settings of the container unit. "bin/config set" stores the values in
 # conf/local/local.json.
 bin/config set mysql.host db
 bin/config set mysql.user phorge

@@ -1,0 +1,31 @@
+[Unit]
+Description=MariaDB database of Phorge
+
+[Container]
+ContainerName=phorge-db
+Image=docker.io/library/mariadb:13.0
+# Phorge reports a setup issue for each of these when it is missing.
+Exec=--sql-mode=STRICT_ALL_TABLES --max-allowed-packet=33554432 --local-infile=0 --innodb-buffer-pool-size=256M
+Environment=MARIADB_USER=phorge
+Environment=MARIADB_PASSWORD_FILE=/run/secrets/db_password
+Environment=MARIADB_ROOT_PASSWORD_FILE=/run/secrets/db_root_password
+Secret=phorge-db-password,target=db_password
+Secret=phorge-db-root-password,target=db_root_password
+Network=phorge.network
+# The entry point of the Phorge container connects to the host name "db".
+NetworkAlias=db
+Volume=phorge-db.volume:/var/lib/mysql
+Volume=./db/initdb.d:/docker-entrypoint-initdb.d:ro
+HealthCmd=healthcheck.sh --connect --innodb_initialized
+HealthInterval=10s
+HealthTimeout=5s
+HealthRetries=5
+HealthStartPeriod=30s
+# systemd counts the unit as started when the health check passes, so the
+# Phorge container is started after the database accepts connections.
+Notify=healthy
+
+[Service]
+Restart=on-failure
+# The first start downloads the image, which has to fit in this time.
+TimeoutStartSec=900

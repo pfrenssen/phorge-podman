@@ -1,0 +1,38 @@
+[Unit]
+Description=Phorge
+Requires=phorge-db.container
+After=phorge-db.container
+
+[Container]
+ContainerName=phorge
+Image=phorge.build
+# Phorge rejects a host name without a dot, so "localhost" cannot be used here.
+Environment=PHORGE_BASE_URI=http://phorge.localhost:8080/
+Environment=PHORGE_TIMEZONE=UTC
+# Loopback only by default: the first visitor of a new instance creates the
+# administrator account.
+PublishPort=127.0.0.1:8080:80
+Secret=phorge-db-password,target=db_password
+Network=phorge.network
+Volume=phorge-files.volume:/var/lib/phorge/files
+HealthCmd=healthcheck.sh
+HealthInterval=30s
+HealthTimeout=10s
+HealthRetries=3
+# The first start creates the database schema. Failed checks are not counted
+# during this time.
+HealthStartPeriod=300s
+# systemd counts the unit as started when the health check passes.
+Notify=healthy
+# The daemons get 60 seconds to finish the task they are working on.
+StopTimeout=70
+
+[Service]
+Restart=on-failure
+# The start period of the health check plus three failed checks. systemd stops
+# a container that is not healthy by then, also when "bin/storage upgrade" is
+# still running, and starts it again.
+TimeoutStartSec=420
+
+[Install]
+WantedBy=default.target

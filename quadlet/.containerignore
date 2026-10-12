@@ -1,0 +1,4 @@
+# The image is built from the files in container/ only. Everything else in
+# this directory stays out of the build context.
+*
+!container

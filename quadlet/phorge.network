@@ -1,0 +1,5 @@
+[Unit]
+Description=Network of the Phorge containers
+
+[Network]
+NetworkName=phorge

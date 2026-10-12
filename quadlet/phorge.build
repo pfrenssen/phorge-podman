@@ -1,0 +1,9 @@
+[Unit]
+Description=Image of the Phorge container
+
+[Build]
+ImageTag=localhost/phorge:latest
+File=Containerfile
+# The build context is the directory of this file. .containerignore limits it
+# to container/.
+SetWorkingDirectory=unit
