@@ -100,10 +100,10 @@ systemctl --user daemon-reload
 
 A running container keeps its old settings until it is [started again](#start).
 
-Phorge compares the host name and the port of each request with
-`PHORGE_BASE_URI` and refuses a host name without a dot, so `localhost` alone
-does not work. Names that end in `.localhost` resolve to the local machine in
-current browsers and with systemd-resolved.
+Phorge compares the host name of each request with that of `PHORGE_BASE_URI`,
+and refuses a host name without a dot, so `localhost` alone does not work. Names
+that end in `.localhost` resolve to the local machine in current browsers and
+with systemd-resolved.
 
 The container serves HTTP only. To reach Phorge over HTTPS, put a reverse proxy
 that ends the TLS connection in front of the port of `PublishPort`, and set
