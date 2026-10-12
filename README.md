@@ -105,6 +105,12 @@ Phorge compares the host name and the port of each request with
 does not work. Names that end in `.localhost` resolve to the local machine in
 current browsers and with systemd-resolved.
 
+The container serves HTTP only. To reach Phorge over HTTPS, put a reverse proxy
+that ends the TLS connection in front of the port of `PublishPort`, and set
+`PHORGE_BASE_URI` to the `https` address of the proxy. With such an address the
+container treats every request as HTTPS. The proxy has to pass on the `Host`
+header of the request.
+
 The default of `PublishPort` accepts connections from the local machine only.
 Keep it that way until the administrator account exists: the first visitor of a
 new instance creates that account.

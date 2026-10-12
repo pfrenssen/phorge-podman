@@ -30,6 +30,21 @@ bin/config set storage.local-disk.path /var/lib/phorge/files
 # The image contains pygmentize.
 bin/config set pygments.enabled true
 
+# The container serves HTTP only. A base URI with "https" therefore means that
+# a reverse proxy in front of the container ends the TLS connection. Phorge
+# then has to treat every request as HTTPS, and support/preamble.php is the
+# place it provides for that (see "Configuring a Preamble Script" in the Phorge
+# documentation).
+case "$PHORGE_BASE_URI" in
+    https://*)
+        cat > support/preamble.php <<'EOF'
+<?php
+
+$_SERVER['HTTPS'] = true;
+EOF
+        ;;
+esac
+
 # A new volume belongs to root when the container engine does not copy the
 # owner of the directory in the image.
 chown www-data:www-data /var/lib/phorge/files

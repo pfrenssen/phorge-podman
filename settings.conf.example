@@ -10,7 +10,8 @@
 #PublishPort=127.0.0.1:8080:80
 
 # Address under which browsers reach Phorge, with the port when it is not 80 or
-# 443. The host name needs at least one dot.
+# 443. The host name needs at least one dot. Use "https" only when a reverse
+# proxy that ends the TLS connection is in front of the container.
 #Environment=PHORGE_BASE_URI=http://phorge.localhost:8080/
 
 # Time zone that Phorge displays to users who have not chosen one.
