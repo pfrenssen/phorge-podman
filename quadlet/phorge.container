@@ -9,6 +9,9 @@ Image=phorge.build
 # Phorge rejects a host name without a dot, so "localhost" cannot be used here.
 Environment=PHORGE_BASE_URI=http://phorge.localhost:8080/
 Environment=PHORGE_TIMEZONE=UTC
+# Without a reverse proxy the X-Forwarded-For header comes from the client and
+# is not trusted.
+Environment=PHORGE_TRUSTED_PROXIES=0
 # Loopback only by default: the first visitor of a new instance creates the
 # administrator account.
 PublishPort=127.0.0.1:8080:80

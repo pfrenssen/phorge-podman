@@ -30,18 +30,33 @@ bin/config set storage.local-disk.path /var/lib/phorge/files
 # The image contains pygmentize.
 bin/config set pygments.enabled true
 
+# Phorge runs support/preamble.php at the start of every request. It is the
+# place Phorge provides for settings that depend on a reverse proxy (see
+# "Configuring a Preamble Script" in the Phorge documentation).
+echo '<?php' > support/preamble.php
+
 # The container serves HTTP only. A base URI with "https" therefore means that
 # a reverse proxy in front of the container ends the TLS connection. Phorge
-# then has to treat every request as HTTPS, and support/preamble.php is the
-# place it provides for that (see "Configuring a Preamble Script" in the Phorge
-# documentation).
+# then has to treat every request as HTTPS.
 case "$PHORGE_BASE_URI" in
     https://*)
-        cat > support/preamble.php <<'EOF'
-<?php
+        echo "\$_SERVER['HTTPS'] = true;" >> support/preamble.php
+        ;;
+esac
 
-$_SERVER['HTTPS'] = true;
-EOF
+# Behind a reverse proxy every request comes from the address of the proxy.
+# Phorge then takes the address of the client from the X-Forwarded-For header,
+# skipping the entries that the trusted proxies added.
+case "$PHORGE_TRUSTED_PROXIES" in
+    0)
+        ;;
+    [1-9]|[1-9][0-9])
+        echo "preamble_trust_x_forwarded_for_header($PHORGE_TRUSTED_PROXIES);" \
+            >> support/preamble.php
+        ;;
+    *)
+        echo "PHORGE_TRUSTED_PROXIES must be a number from 0 to 99." >&2
+        exit 1
         ;;
 esac
 

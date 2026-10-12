@@ -68,16 +68,17 @@ started at every start of your systemd user instance, because
 
 ## Settings
 
-The container has three settings, each with a default.
-
 | Setting | Default |
 |---|---|
 | `PublishPort` | `127.0.0.1:8080:80` |
 | `PHORGE_BASE_URI` | `http://phorge.localhost:8080/` |
 | `PHORGE_TIMEZONE` | `UTC` |
+| `PHORGE_TRUSTED_PROXIES` | `0` |
 
 `PublishPort` is the address and the port on the host. `PHORGE_BASE_URI` is the
 address for browsers, and `PHORGE_TIMEZONE` the default time zone.
+`PHORGE_TRUSTED_PROXIES` is the number of [reverse proxies](#reverse-proxy) in
+front of the container.
 
 Settings are changed in a file of your own, which systemd merges with the
 installed `phorge.container`. The installed files stay unchanged, so a later
@@ -105,15 +106,33 @@ and refuses a host name without a dot, so `localhost` alone does not work. Names
 that end in `.localhost` resolve to the local machine in current browsers and
 with systemd-resolved.
 
+The default of `PublishPort` accepts connections from the local machine only.
+Keep it that way until the administrator account exists: the first visitor of a
+new instance creates that account.
+
+### Reverse proxy
+
 The container serves HTTP only. To reach Phorge over HTTPS, put a reverse proxy
 that ends the TLS connection in front of the port of `PublishPort`, and set
 `PHORGE_BASE_URI` to the `https` address of the proxy. With such an address the
 container treats every request as HTTPS. The proxy has to pass on the `Host`
 header of the request.
 
-The default of `PublishPort` accepts connections from the local machine only.
-Keep it that way until the administrator account exists: the first visitor of a
-new instance creates that account.
+Behind a proxy, every request reaches Phorge from the address of the proxy.
+Phorge then records that address in its logs, and counts the failed logins of
+all users together. To give Phorge the address of the client, let the proxy add
+it to the `X-Forwarded-For` header, and set `PHORGE_TRUSTED_PROXIES` to the
+number of proxies that do so, `1` for a single proxy. For nginx:
+
+```nginx
+proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+```
+
+Phorge takes the entry of the header that the first of these proxies added, and
+ignores the entries before it, which the client can choose freely. Set the
+number only when the port of `PublishPort` cannot be reached without passing the
+proxies. A client that connects to the port directly can put any address in the
+header.
 
 ## Versions
 
