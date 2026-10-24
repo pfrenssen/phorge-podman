@@ -7,8 +7,8 @@ FROM docker.io/library/php:8.4-fpm@sha256:af1728147713459bda545446e3fae81cea5119
 # The workflow follow-stable.yml moves both to the heads of the stable branches.
 # A branch name would build once only: later builds reuse the cached layer of
 # the "git fetch" step.
-ARG PHORGE_REF=20aaead687fcc9376560adfa57c13a2201faedd4
-ARG ARCANIST_REF=63de5a2953b79dbe6aac4ed92bdb64b45cad53d6
+ARG PHORGE_REF=7d2dd8899c3b31bfd7a61d8e0de94b9b9a675615
+ARG ARCANIST_REF=922ffd9dd8233e29e269bc28c19931a39a0ef46d
 
 # mariadb-client provides mysqldump, which "bin/storage dump" calls. procps
 # provides ps, which Phorge uses to inspect its daemons. python3-pygments
