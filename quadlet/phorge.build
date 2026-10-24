@@ -1,5 +1,5 @@
 [Unit]
-Description=Image of the Phorge container
+Description=Local build of the image of the Phorge container
 
 [Build]
 ImageTag=localhost/phorge:latest

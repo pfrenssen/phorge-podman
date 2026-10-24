@@ -13,7 +13,8 @@ files do not work with Docker.
 
 Two containers are started:
 
-- `phorge` is built from `quadlet/Containerfile`. It holds the source of Phorge
+- `phorge` runs the [image](#image) `ghcr.io/pfrenssen/phorge`, which this
+  repository builds from `quadlet/Containerfile`. It holds the source of Phorge
   and Arcanist, and runs nginx, php-fpm and the Phorge daemons under
   supervisord.
 - `phorge-db` runs the MariaDB image of Docker Hub.
@@ -28,6 +29,8 @@ The data is kept in two named volumes: `phorge-db` for the database and
   were tested with podman 6.1.
 - systemd with a user instance, which every login session has
 - `openssl`, to generate the passwords
+- access to `ghcr.io` and `docker.io`, from which the first start downloads the
+  images of Phorge and MariaDB
 
 ## Passwords
 
@@ -134,42 +137,84 @@ number only when the port of `PublishPort` cannot be reached without passing the
 proxies. A client that connects to the port directly can put any address in the
 header.
 
-## Versions
+## Image
 
-The versions are build arguments of the `Containerfile`: `PHP_VERSION`,
-`PHORGE_REF` and `ARCANIST_REF`. The last two accept a tag, a branch or a commit
-of the repositories `phorgeit/phorge` and `phorgeit/arcanist` at GitHub. The
-defaults are in the `Containerfile`.
+The workflows of this repository build the image of `phorge` and publish it as
+`ghcr.io/pfrenssen/phorge`, with two tags:
 
-To build other versions, create the file
-`~/.config/containers/systemd/phorge.build.d/versions.conf` with one line for
-each argument to change, for example:
+- The full hash of the commit of `master` it was built from, such as
+  `ghcr.io/pfrenssen/phorge:ff02add79da4d1fbce9f318a7b53de516d519a5d`. Every
+  image is kept, so the image of an earlier commit can be run again.
+- `latest`, the image of the newest commit. `quadlet/phorge.container` uses this
+  tag.
 
-```ini
-[Build]
-BuildArg=PHORGE_REF=master
-BuildArg=ARCANIST_REF=master
-```
+`quadlet/Containerfile` pins three inputs of the image:
 
-Then run `systemctl --user daemon-reload` and [start](#start) Phorge again.
+| Pin | Value |
+|---|---|
+| `FROM` | `docker.io/library/php:8.4-fpm` with the digest of one image |
+| `PHORGE_REF` | a commit of `phorgeit/phorge` at GitHub |
+| `ARCANIST_REF` | a commit of `phorgeit/arcanist` at GitHub |
+
+Two workflows in `.github/workflows/` publish images:
+
+- `push.yml` builds each commit that is pushed to `master` and publishes its
+  image. A pull request is built and not published.
+- `follow-stable.yml` runs once a day. It reads the heads of the `stable`
+  branches of Phorge and Arcanist and the digest of the current `php:8.4-fpm`
+  image. When one of them moved, it writes them into the `Containerfile`, builds
+  the image, commits the change to `master` as `github-actions[bot]` and
+  publishes the image of that commit. A failed build leaves `master` unchanged.
+  The workflow can also be started by hand, on its page under "Actions" of the
+  repository.
+
+The pins follow the `stable` branches and not the release tags. Phorge tags two
+or three releases a year, named after the year and the week, such as `2026.27`,
+and publishes no point releases. Fixes between two releases, security fixes
+included, are committed to `stable` only and get no tag. The upgrade guide of
+Phorge requires Phorge and Arcanist to be upgraded together, so each commit of
+the workflow holds the heads of both branches at the time of the run.
+
+The pins are commits and not branch names. A build with an unchanged branch name
+reuses the cached layer of the `git fetch` step and does not fetch new code.
+
+Every start of `phorge` runs `bin/storage upgrade`, which brings the database
+schema to the version of the image. `bin/storage` has no downgrade, so an image
+of an earlier commit cannot be run on a database that a newer image upgraded.
+The way back is the dump that is written before an
+[update](#update-of-the-image).
+
+GitHub disables a scheduled workflow of a public repository after 60 days
+without activity in the repository. The base image changes every few weeks, and
+each change is a commit of `follow-stable.yml`. A disabled workflow is enabled
+again on its page under "Actions".
 
 ## Start
+
+Before the first start, download the image of Phorge. systemd gives the start of
+`phorge` 420 seconds, which the first start needs for the database schema; a
+download during the start would count towards them.
+
+```bash
+podman pull ghcr.io/pfrenssen/phorge:latest
+```
+
+Start Phorge:
 
 ```bash
 systemctl --user restart phorge
 ```
 
-The command starts what is not running: it builds the image, creates the network
-and the volumes, starts `phorge-db`, waits until the database accepts
-connections and then starts `phorge`. It returns when Phorge answers requests.
-The first start downloads the MariaDB image, builds the Phorge image and creates
-the database schema, which takes several minutes. Later starts build the image
-from the cache.
+The command starts what is not running: it creates the network and the volumes,
+starts `phorge-db`, waits until the database accepts connections and then starts
+`phorge`. It returns when Phorge answers requests. The first start downloads the
+MariaDB image and creates the database schema, which takes several minutes.
+Later starts use the downloaded images.
 
 Follow the progress in a second terminal:
 
 ```bash
-journalctl --user -f -u phorge-build -u phorge-db -u phorge
+journalctl --user -f -u phorge-db -u phorge
 ```
 
 The lines "Retrying database connection" at the start of the output of `phorge`
@@ -252,6 +297,37 @@ systemctl --user stop phorge phorge-db
 systemd removes the two containers. The volumes are kept, so the next start
 continues with the same data.
 
+## Update of the image
+
+podman downloads the image of `phorge` at the first start only; later starts use
+the local copy. To run the newest image, download it again:
+
+```bash
+podman pull ghcr.io/pfrenssen/phorge:latest
+```
+
+The next start of `phorge` upgrades the database schema, which cannot be undone.
+Before it, write a dump of the database while the old container runs. The file
+holds all data of Phorge, in plain text.
+
+```bash
+podman exec phorge bin/storage dump | gzip > phorge-before-update.sql.gz
+```
+
+Start Phorge on the new image. The old container stops, and the new one runs
+`bin/storage upgrade` before it answers requests.
+
+```bash
+systemctl --user restart phorge
+```
+
+To go back to the previous image, the dump has to be loaded into a new
+`phorge-db` volume before that image starts.
+
+`quadlet/phorge.container` sets no `AutoUpdate=`. `podman auto-update` would
+start a new image without a dump, and when that start fails it would start the
+previous image again, on a schema that the new image may have upgraded.
+
 ## Update of the files
 
 After a change to a file in `quadlet/`, for example when a newer commit of this
@@ -264,6 +340,37 @@ podman quadlet install --replace --application=phorge quadlet
 ```bash
 systemctl --user restart phorge
 ```
+
+## Local build
+
+To build the image on your machine instead of downloading it, such as to test a
+change of the `Containerfile`, let `phorge` use the image of
+`quadlet/phorge.build`. Create the file
+`~/.config/containers/systemd/phorge.container.d/build.conf`:
+
+```ini
+[Container]
+Image=phorge.build
+```
+
+Then run `systemctl --user daemon-reload` and [start](#start) Phorge again. Each
+start of `phorge` now runs `podman build` first, as the unit `phorge-build`, and
+builds `localhost/phorge:latest`; unchanged steps come from the cache. Remove
+the file to return to the published image.
+
+To build other commits of Phorge and Arcanist than those of the `Containerfile`,
+create the file `~/.config/containers/systemd/phorge.build.d/versions.conf`, for
+example:
+
+```ini
+[Build]
+BuildArg=PHORGE_REF=7d2dd8899c3b31bfd7a61d8e0de94b9b9a675615
+BuildArg=ARCANIST_REF=922ffd9dd8233e29e269bc28c19931a39a0ef46d
+```
+
+`PHORGE_REF` and `ARCANIST_REF` also accept a tag or a branch. A branch is
+fetched at the first build only, as described under [Image](#image). Change both
+together, because Phorge and Arcanist have to be upgraded together.
 
 ## Removal
 
@@ -298,6 +405,12 @@ podman network rm phorge
 ```bash
 podman secret rm phorge-db-password phorge-db-root-password
 ```
+
+```bash
+podman rmi ghcr.io/pfrenssen/phorge
+```
+
+After a [local build](#local-build), also remove the built image:
 
 ```bash
 podman rmi localhost/phorge

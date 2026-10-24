@@ -1,0 +1,87 @@
+# Keep the image on the heads of the stable branches of Phorge and Arcanist and
+# on the current base image. When one of them moved, write the new pins into
+# quadlet/Containerfile, build, and only then push the commit to master and
+# publish its image. A push with GITHUB_TOKEN starts no other workflow, so
+# push.yml does not build the commit again.
+name: Follow stable
+
+on:
+  schedule:
+    - cron: "17 4 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: follow-stable
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  image:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: master
+      - name: Commit the new pins
+        id: pins
+        run: |
+          file=quadlet/Containerfile
+          base=$(sed -n 's/^FROM \([^@]*\)@.*/\1/p' "$file")
+          old_digest=$(sed -n 's/^FROM [^@]*@//p' "$file")
+          old_phorge=$(sed -n 's/^ARG PHORGE_REF=//p' "$file")
+          old_arcanist=$(sed -n 's/^ARG ARCANIST_REF=//p' "$file")
+
+          digest=$(skopeo inspect --format '{{.Digest}}' "docker://$base")
+          phorge=$(git ls-remote https://github.com/phorgeit/phorge.git refs/heads/stable | cut -f1)
+          arcanist=$(git ls-remote https://github.com/phorgeit/arcanist.git refs/heads/stable | cut -f1)
+          [[ $digest =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "Digest of $base: '$digest'"; exit 1; }
+          [[ $phorge =~ ^[0-9a-f]{40}$ ]] || { echo "Phorge stable: '$phorge'"; exit 1; }
+          [[ $arcanist =~ ^[0-9a-f]{40}$ ]] || { echo "Arcanist stable: '$arcanist'"; exit 1; }
+
+          subject=()
+          body=()
+          if [[ $phorge != "$old_phorge" ]]; then
+            subject+=("Phorge to stable ${phorge:0:12}")
+            body+=("PHORGE_REF: $old_phorge -> $phorge")
+          fi
+          if [[ $arcanist != "$old_arcanist" ]]; then
+            subject+=("Arcanist to stable ${arcanist:0:12}")
+            body+=("ARCANIST_REF: $old_arcanist -> $arcanist")
+          fi
+          if [[ $digest != "$old_digest" ]]; then
+            subject+=("$base to ${digest:0:19}")
+            body+=("$base: $old_digest -> $digest")
+          fi
+          if [[ ${#subject[@]} -eq 0 ]]; then
+            echo "The pins are current."
+            exit 0
+          fi
+
+          sed -i \
+            -e "s|^FROM .*|FROM $base@$digest|" \
+            -e "s|^ARG PHORGE_REF=.*|ARG PHORGE_REF=$phorge|" \
+            -e "s|^ARG ARCANIST_REF=.*|ARG ARCANIST_REF=$arcanist|" \
+            "$file"
+          joined=$(printf ', %s' "${subject[@]}")
+          git -c user.name='github-actions[bot]' \
+            -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+            commit --quiet \
+            --message "Update ${joined:2}" \
+            --message "$(printf '%s\n' "${body[@]}")" \
+            "$file"
+          echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - if: steps.pins.outputs.commit
+        uses: ./.github/actions/build
+        with:
+          tag: ${{ steps.pins.outputs.commit }}
+      # A person who pushed since the checkout makes this fail. The next run
+      # starts from the new master.
+      - if: steps.pins.outputs.commit
+        name: Push the commit
+        run: git push origin HEAD:master
+      - if: steps.pins.outputs.commit
+        uses: ./.github/actions/publish
+        with:
+          tag: ${{ steps.pins.outputs.commit }}

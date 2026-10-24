@@ -1,0 +1,25 @@
+name: Publish
+description: >-
+  Push the Phorge image that the build action made to ghcr.io, under its commit
+  and as latest.
+
+inputs:
+  tag:
+    description: Tag of the built image, the hash of its commit.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Push the image
+      shell: bash
+      env:
+        IMAGE: ghcr.io/pfrenssen/phorge
+        TAG: ${{ inputs.tag }}
+        TOKEN: ${{ github.token }}
+        USERNAME: ${{ github.actor }}
+      run: |
+        podman login ghcr.io --username "$USERNAME" --password-stdin <<< "$TOKEN"
+        podman push "$IMAGE:$TAG"
+        podman tag "$IMAGE:$TAG" "$IMAGE:latest"
+        podman push "$IMAGE:latest"

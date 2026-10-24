@@ -1,0 +1,16 @@
+name: Build
+description: Build the Phorge image from quadlet/ with podman.
+
+inputs:
+  tag:
+    description: Tag of the image, the hash of the commit that is built.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Build the image
+      shell: bash
+      env:
+        TAG: ${{ inputs.tag }}
+      run: podman build --tag "ghcr.io/pfrenssen/phorge:$TAG" quadlet

@@ -1,0 +1,28 @@
+# Build the image of every commit of master and publish it under the commit
+# hash, because each commit can be the version that a host installs. A pull
+# request is built only.
+name: Push
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  image:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/build
+        with:
+          tag: ${{ github.sha }}
+      - if: github.event_name == 'push'
+        uses: ./.github/actions/publish
+        with:
+          tag: ${{ github.sha }}

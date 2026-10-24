@@ -5,7 +5,9 @@ After=phorge-db.container
 
 [Container]
 ContainerName=phorge
-Image=phorge.build
+# The image that the workflows of this repository publish. The README describes
+# how to build it locally from phorge.build instead.
+Image=ghcr.io/pfrenssen/phorge:latest
 # Phorge rejects a host name without a dot, so "localhost" cannot be used here.
 Environment=PHORGE_BASE_URI=http://phorge.localhost:8080/
 Environment=PHORGE_TIMEZONE=UTC
