@@ -3,7 +3,7 @@ Description=MariaDB database of Phorge
 
 [Container]
 ContainerName=phorge-db
-Image=docker.io/library/mariadb:13.0
+Image=docker.io/library/mariadb:12.3
 # Phorge reports a setup issue for each of these when it is missing.
 Exec=--sql-mode=STRICT_ALL_TABLES --max-allowed-packet=33554432 --local-infile=0 --innodb-buffer-pool-size=256M
 Environment=MARIADB_USER=phorge
