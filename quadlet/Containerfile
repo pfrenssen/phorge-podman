@@ -8,7 +8,7 @@ FROM docker.io/library/php:8.4-fpm@sha256:212c3c9fc09d58f6b1a12b0b4a6a90fd44a209
 # A branch name would build once only: later builds reuse the cached layer of
 # the "git fetch" step.
 ARG PHORGE_REF=7d2dd8899c3b31bfd7a61d8e0de94b9b9a675615
-ARG ARCANIST_REF=922ffd9dd8233e29e269bc28c19931a39a0ef46d
+ARG ARCANIST_REF=34b8b54e0a01a2622acea78b0b9ca82b45141f98
 
 # mariadb-client provides mysqldump, which "bin/storage dump" calls. procps
 # provides ps, which Phorge uses to inspect its daemons. python3-pygments
