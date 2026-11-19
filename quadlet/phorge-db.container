@@ -6,6 +6,9 @@ ContainerName=phorge-db
 Image=docker.io/library/mariadb:12.3
 # Phorge reports a setup issue for each of these when it is missing.
 Exec=--sql-mode=STRICT_ALL_TABLES --max-allowed-packet=33554432 --local-infile=0 --innodb-buffer-pool-size=256M
+# At the first start on a new series, back up the system database into the
+# volume and upgrade the system tables before the server starts.
+Environment=MARIADB_AUTO_UPGRADE=1
 Environment=MARIADB_USER=phorge
 Environment=MARIADB_PASSWORD_FILE=/run/secrets/db_password
 Environment=MARIADB_ROOT_PASSWORD_FILE=/run/secrets/db_root_password

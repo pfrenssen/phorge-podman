@@ -341,6 +341,16 @@ podman quadlet install --replace --application=phorge quadlet
 systemctl --user restart phorge
 ```
 
+A newer commit can change the MariaDB series, which is the image tag in
+`quadlet/phorge-db.container`. At the first start on a new series, `phorge-db`
+writes a copy of the MariaDB system database `mysql` to the file
+`system_mysql_backup_<old version>.sql.zst` in the `phorge-db` volume. It then
+upgrades the system tables with `mariadb-upgrade` and starts the server. The
+setting `MARIADB_AUTO_UPGRADE=1` in `quadlet/phorge-db.container` enables this
+step. MariaDB does not support an older series on an upgraded database. Before
+the restart, write a dump of the database as described under
+[Update of the image](#update-of-the-image); it is the only way back.
+
 ## Local build
 
 To build the image on your machine instead of downloading it, such as to test a
