@@ -1,13 +1,13 @@
 # The base image, pinned by digest: podman ignores the tag when a digest is
 # given. The workflow follow-stable.yml moves the digest to the current image of
 # the tag.
-FROM docker.io/library/php:8.4-fpm@sha256:89aa7c69dedff16e4076f955578547b62566b7f9aa6a0caa6b34b554490be4f0
+FROM docker.io/library/php:8.4-fpm@sha256:495ab94788034640ddd6fb313476e75570261622c42704e5ae02047b8d934ea0
 
 # The commits of github.com/phorgeit/phorge and github.com/phorgeit/arcanist.
 # The workflow follow-stable.yml moves both to the heads of the stable branches.
 # A branch name would build once only: later builds reuse the cached layer of
 # the "git fetch" step.
-ARG PHORGE_REF=7d2dd8899c3b31bfd7a61d8e0de94b9b9a675615
+ARG PHORGE_REF=d26d0cac53a210adcf4221afc408788b085875af
 ARG ARCANIST_REF=34b8b54e0a01a2622acea78b0b9ca82b45141f98
 
 # mariadb-client provides mysqldump, which "bin/storage dump" calls. procps
