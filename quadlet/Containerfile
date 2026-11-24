@@ -1,7 +1,7 @@
 # The base image, pinned by digest: podman ignores the tag when a digest is
 # given. The workflow follow-stable.yml moves the digest to the current image of
 # the tag.
-FROM docker.io/library/php:8.4-fpm@sha256:495ab94788034640ddd6fb313476e75570261622c42704e5ae02047b8d934ea0
+FROM docker.io/library/php:8.4-fpm@sha256:8374ec282efaccb7350fbea59c252fcd2e73a238b06b970e8f3c74fb605f1853
 
 # The commits of github.com/phorgeit/phorge and github.com/phorgeit/arcanist.
 # The workflow follow-stable.yml moves both to the heads of the stable branches.
